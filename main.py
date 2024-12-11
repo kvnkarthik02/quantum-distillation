@@ -3,7 +3,7 @@ import numpy as np
 # Initial state (|0⟩)
 rho_initial = basis(2, 0) * basis(2, 0).dag()
 # Noise probability
-p = 1
+p = 0.9
 # Define the Kraus operators
 K0 = np.sqrt(1 - p) * Qobj(np.eye(2))
 K1 = np.sqrt(p / 3) * sigmax()
