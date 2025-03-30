@@ -95,13 +95,9 @@ def apply_twirling(rho):
     for i in range(4):
         term = K[i].dag() @ K[i].dag() @ rho @ K[i] @ K[i]
         bracket_term += term
-    for j in range(3):
-        rho_w += K[j].dag() @ bracket_term @ K[j]
-    rho_w = rho_w / 12
+    rho_w = rho_w / 4
 
     return rho_w
-
-
 
 def calc_fidelity(state, p0 = qt.bell_state('11')):
     try:
@@ -110,11 +106,10 @@ def calc_fidelity(state, p0 = qt.bell_state('11')):
         return (qt.fidelity(state, qt.tensor(p0, p0)))
 
 
-
 def generate_collapse_operators(T1, T2):
-    gam = 1 / T1  # probability of a type 1 error
+    gam = 1 - np.exp(- 1 / T1)  # probability of a type 1 error
 
-    dep = 1 / T2  # probability of a type 2 error
+    dep = 1 - np.exp(- 1 / T2)  # probability of a type 2 error
 
     # operators acting on A whilst B is in flight
     c_ops_partial = [np.sqrt(gam) * qt.tensor(qt.destroy(2), qt.qeye(2)),
@@ -132,7 +127,7 @@ def gen_entangled_state():
     return state
 
 
-def apply_t1t2_noise_to_entangled_state(t1, t2):
+def apply_t1t2_noise_to_entangled_state(t1, t2, speed_of_light, delay):
     """
     Apply T1 and T2 noise to each qubit in a two-qubit entangled state with different times.
 
@@ -159,7 +154,7 @@ def apply_t1t2_noise_to_entangled_state(t1, t2):
     output = []
 
     # evolve initial state whilst B is in flight (single step update)
-    result = qt.mesolve(H, p0, np.linspace(0, 50e-3, 1000), c_ops_full, options=opts)
+    result = qt.mesolve(H, p0, np.linspace(0, 50e-3, 1000), c_ops_partial, options=opts)
     pprime = result.states[-1]
     output.append(calc_fidelity(pprime, p0))
     twirled_states = []
@@ -169,16 +164,7 @@ def apply_t1t2_noise_to_entangled_state(t1, t2):
         twirled_states.append(apply_twirling(state))
         state_after_noise.append(state)
     # print("1000th index: ", np.square(fidelity(twirled_states[-1], bell_state("11"))))
-    # count=0
-    # for state in twirled_states:
-    #     print(count,"@ ",np.square(fidelity(state, bell_state("11"))))
-    #     count= count+1
-    # print("fidelity list complete")
-    
-    # a = np.linspace(0, 50e-3, 1000)
-    # print(a[998])
-
-    return output[998], twirled_states[998]
+    return output[200], twirled_states[200]
 
 
 def apply_locc_noise(state, waiting_time, T1, T2):
@@ -220,22 +206,17 @@ def perform_bbpssw_purification(initial_state, threshold_fidelity, T1, T2, delay
         list: Fidelity history after each iteration.
     """
     current_state = initial_state.copy()
-    print()
     fidelity_history = []
     
     for iteration in range(max_iterations):
         # Create two copies of the current state for purification
         rho_initial = qt.tensor(current_state, current_state)
-        success = False
+        
         # Attempt purification until successful
+        success = False
         while not success:
-            print("------------------------------------------------------------------")        
-            print(f"Iteration {iteration + 1}")
-            print("is input werner: ", check_werner_r1(current_state))
             rho = rho_initial.copy()
-            # print(rho)
-            print("Fidelity before purification: ", (calc_fidelity(rho)))
-
+            
             # Apply Y rotations
             U_Y0 = tensor(sigmay(), qeye(2), qeye(2), qeye(2))
             U_Y2 = tensor(qeye(2), qeye(2), sigmay(), qeye(2))
@@ -271,25 +252,19 @@ def perform_bbpssw_purification(initial_state, threshold_fidelity, T1, T2, delay
                 rho_final = rho_post.ptrace([0, 1])
                 U_corr = tensor(sigmay(), qeye(2))
                 purified_state = U_corr * rho_final * U_corr.dag()
-                print("Fidelity post purification w/o LOCC noise",np.square(qt.fidelity(purified_state, bell_state('11'))))
-
+                
                 # Apply LOCC noise
                 purified_state_after_wait = apply_locc_noise(purified_state, delay_time, T1, T2)
                 fidelity = np.square(qt.fidelity(purified_state_after_wait, bell_state('11')))
                 fidelity_history.append(fidelity)
-                print(f"Fidelity after purification and LOCC noise: {fidelity}")
-                # print(purified_state_after_wait)
-                print("------------------------------------------------------------------")
+                print(f"Iteration {iteration + 1}: Fidelity after purification and LOCC noise: {fidelity}")
+                
                 if fidelity > threshold_fidelity:
-                    print('SUCCESSFUL')
                     return purified_state_after_wait, fidelity_history
                 else:
-                    current_state = apply_twirling(purified_state_after_wait)
-
+                    current_state = purified_state_after_wait
             else:
-                # print("------------------------------------------------------------------")
                 print("Purification failed. Retrying...")
-                # print("------------------------------------------------------------------")
                 
     
     print(f"Max iterations ({max_iterations}) reached. Final fidelity: {fidelity_history[-1] if fidelity_history else 'N/A'}")
@@ -304,7 +279,7 @@ delays = [0.001]
 bar_gr_result_f = {delay: [] for delay in delays}
 quantum_channel_lengths = [20, 22]
 # memory_params = {"T1": [86400, 1.14, 100, 3600, 600, 10000], "T2": [63, 0.5, 0.0018, 1.58, 1.2, 667]}
-memory_params = {"T1": [1.14], "T2": [0.5]}
+memory_params = {"T1": [0.0012], "T2": [0.00072]}
 
 ''' refer to the following for T1 and T2 values:
     https://www.aqt.eu/quantum-memory-lifetime/
@@ -321,28 +296,24 @@ for i in range(len(memory_params['T1'])):
     results = {delay: [] for delay in delays}
     twirled_states = {delay: [] for delay in delays}
     for delay in delays:
-        results[delay], twirled_states[delay] = apply_t1t2_noise_to_entangled_state(t1=memory_params["T1"][i], t2=memory_params["T2"][i])
+        results[delay], twirled_states[delay] = apply_t1t2_noise_to_entangled_state(t1=memory_params["T1"][i], t2=memory_params["T2"][i], speed_of_light=speed_of_light, delay=delay)
     mem_values.append(results)
 
-print("Starting Fidelity: ",np.square(calc_fidelity(twirled_states[delays[-1]])))
+    print("Init Fidelity: ",np.square(calc_fidelity(twirled_states[delays[-1]])))
 
 # print(list(map(check_werner_r1, twirled_states[delays[-1]])))
 
 delay = delays[-1]
 initial_state = twirled_states[delay]
-threshold_fidelity = 0.85  # Example threshold, adjust as needed
+threshold_fidelity = 0.99  # Example threshold, adjust as needed
 purified_state, fidelity_history = perform_bbpssw_purification(
     initial_state=initial_state,
     threshold_fidelity=threshold_fidelity,
     T1=memory_params["T1"][0],
     T2=memory_params["T2"][0],
-    delay_time=100e-4,
+    delay_time=50e-3,
     max_iterations=50
 )
 # For a single purification attempt:
 # perform_bbpssw_purification_direct()
-
-
-
-
 
