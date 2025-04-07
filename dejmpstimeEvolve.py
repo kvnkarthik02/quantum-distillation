@@ -195,6 +195,7 @@ def dejmps(initial_state, threshold_fidelity, T1, T2, delay_time, max_iterations
                 y_rotation = tensor(sigmay(), qeye(2))
                 purified_state = y_rotation * purified_state * y_rotation.dag()
 
+                print("Fidelity after purification before LOCC noise: ", np.square(fidelity(purified_state, bell_state('11'))))
                 purified_state_after_wait = apply_locc_noise(purified_state, delay_time, T1, T2)
                 fidelity_val = np.square(fidelity(purified_state_after_wait, bell_state('11')))
                 fidelity_history.append(fidelity_val)
@@ -205,8 +206,8 @@ def dejmps(initial_state, threshold_fidelity, T1, T2, delay_time, max_iterations
                     print('SUCCESSFUL')
                     return purified_state_after_wait, fidelity_history
                 else:
+                    # current_state = purified_state_after_wait
                     current_state = apply_twirling(purified_state_after_wait)
-                    print("Fidelity after twirling: ", np.square(fidelity(current_state, bell_state('11'))))
             else:
                 # print("------------------------------------------------------------------")
                 print("Purification failed. Retrying...")
@@ -216,20 +217,79 @@ def dejmps(initial_state, threshold_fidelity, T1, T2, delay_time, max_iterations
     return current_state, fidelity_history
 
 
-channel_lengths = np.linspace(10, 90, 9, endpoint=True)
-delays = [0.001]
-bar_gr_result_f = {delay: [] for delay in delays}
-quantum_channel_lengths = [20, 22]
+# channel_lengths = np.linspace(10, 90, 9, endpoint=True)
+# delays = [0.001]
+# bar_gr_result_f = {delay: [] for delay in delays}
+# quantum_channel_lengths = [20, 22]
 # memory_params = {"T1": [1.14], "T2": [0.5]}
-# memory_params = {"T1": [0.0256], "T2": [0.034]}
-memory_params = {"T1": [200], "T2": [0.5]}
-initial_state = bds_state(0.7)
+# # memory_params = {"T1": [0.0256], "T2": [0.034]}
+# # memory_params = {"T1": [200], "T2": [0.5]}
+# initial_state = bds_state(0.7)
 
-purified_state, fidelity_history = dejmps(
-            initial_state=initial_state,
-            threshold_fidelity=0.90,
-            T1=memory_params["T1"][0],
-            T2=memory_params["T2"][0],
-            delay_time=0,
-            max_iterations=20 
-        )
+# purified_state, fidelity_history = dejmps(
+#             initial_state=initial_state,
+#             threshold_fidelity=0.999999999999999999999999999999,
+#             T1=memory_params["T1"][0],
+#             T2=memory_params["T2"][0],
+#             delay_time=1e-4,
+#             max_iterations=50
+#         )
+
+#--------------------------------------------------------------------------------------------------
+# # CODE FOR CREATING MAX FIDELITY V LATENCY PLOT. SET MAX ITERATIONS TO 20. 
+
+def run_purification_experiments(initial_state, T1, T2, max_iterations=20):
+    threshold_values = np.linspace(0.8, 0.99, 10)  # Fidelity threshold values
+    delay_times = np.linspace(0, 270e-4, 50)  # Delay times from 0 to 100e-4
+    
+    failure_data = {}
+    
+    for threshold in threshold_values:
+        failure_point = None
+        for delay in delay_times:
+            print(f"Testing threshold {threshold:.2f} with delay {delay:.5f}...")
+            purified_state, fidelity_history = dejmps(
+                initial_state=initial_state,
+                threshold_fidelity=threshold,
+                T1=T1,
+                T2=T2,
+                delay_time=delay,
+                max_iterations=max_iterations
+            )
+            
+            if fidelity_history[-1] < threshold:
+                failure_point = delay
+                break
+        
+        failure_data[threshold] = failure_point if failure_point is not None else max(delay_times)
+    
+    return threshold_values, failure_data
+
+def plot_results(threshold_valuesDEJMPS, failure_dataDEJMPS, threshold_valuesBBPSSW, failure_dataBBPSSW ):
+    failure_pointsDEJMPS = [failure_dataDEJMPS[t] for t in threshold_valuesDEJMPS]
+    failure_pointsBBPSSW = [failure_dataBBPSSW[j] for j in threshold_valuesBBPSSW]
+
+    
+    plt.figure(figsize=(8, 5))
+    plt.plot(threshold_valuesDEJMPS, failure_pointsDEJMPS, marker='o', linestyle='-', color='b', label = 'Deutsch Protocol')
+    plt.plot(threshold_valuesBBPSSW, failure_pointsBBPSSW, marker='o', linestyle='-', color='r', label='Bennett Protocol')
+    plt.xlabel("Fidelity Threshold")
+    plt.ylabel("Failure Delay Time (s)")
+    plt.title("Threshold Fidelity vs. Failure Network Latency Value")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('plots/bbpssw/bbpssw_fidelityIterationsVtime.svg', dpi=400)
+    plt.show()
+
+# Set initial state and memory parameters
+initial_state = bds_state(0.7)
+T1 = 1.14
+T2 = 0.5
+
+threshold_valuesDEJMPS, failure_dataDEJMPS = run_purification_experiments(initial_state, T1, T2)
+# print("Threshold values: ", threshold_values)
+# print("Failure Data: ", failure_data)
+threshold_valuesBBPSSW = [0.8,0.82111111, 0.84222222, 0.86333333, 0.88444444, 0.90555556, 0.92666667, 0.94777778, 0.96888889, 0.99]
+failure_dataBBPSSW = {np.float64(0.8): np.float64(0.01), np.float64(0.82111111): np.float64(0.01), np.float64(0.84222222): np.float64(0.009473684210526315), np.float64(0.86333333): np.float64(0.008421052631578947), np.float64(0.88444444): np.float64(0.007368421052631579), np.float64(0.90555556): np.float64(0.00631578947368421), np.float64(0.92666667): np.float64(0.004736842105263157), np.float64(0.94777778): np.float64(0.0036842105263157894), np.float64(0.96888889): np.float64(0.002105263157894737), np.float64(0.99): np.float64(0.0010526315789473684)}
+
+plot_results(threshold_valuesDEJMPS, failure_dataDEJMPS, threshold_valuesBBPSSW, failure_dataBBPSSW)

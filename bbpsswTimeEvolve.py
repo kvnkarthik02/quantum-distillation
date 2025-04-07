@@ -315,30 +315,33 @@ def perform_bbpssw_purification(initial_state, threshold_fidelity, T1, T2, delay
     print(f"Max iterations ({max_iterations}) reached. Final fidelity: {fidelity_history[-1] if fidelity_history else 'N/A'}")
     return current_state, fidelity_history
 
+#--------------------------------------------------------------------------------------------------
+#NORMAL RUN
 
-channel_lengths = np.linspace(10, 90, 9, endpoint=True)
-# channel_lengths = np.array([1e5, 1e4])
-speed_of_light = 2e5  # in fibre
-# delays = [0.0005, 0.001, 0.002, 0.003]
-delays = [0.001]
-bar_gr_result_f = {delay: [] for delay in delays}
-quantum_channel_lengths = [20, 22]
-# memory_params = {"T1": [86400, 1.14, 100, 3600, 600, 10000], "T2": [63, 0.5, 0.0018, 1.58, 1.2, 667]}
+# channel_lengths = np.linspace(10, 90, 9, endpoint=True)
+# # channel_lengths = np.array([1e5, 1e4])
+# speed_of_light = 2e5  # in fibre
+# # delays = [0.0005, 0.001, 0.002, 0.003]
+# delays = [0.001]
+# bar_gr_result_f = {delay: [] for delay in delays}
+# quantum_channel_lengths = [20, 22]
+# # memory_params = {"T1": [86400, 1.14, 100, 3600, 600, 10000], "T2": [63, 0.5, 0.0018, 1.58, 1.2, 667]}
 # memory_params = {"T1": [1.14], "T2": [0.5]}
-# memory_params = {"T1": [0.0256], "T2": [0.034]}
-memory_params = {"T1": [200], "T2": [0.5]}
+# # memory_params = {"T1": [0.0256], "T2": [0.034]}
+# # memory_params = {"T1": [200], "T2": [0.5]}
 
 
 
-''' refer to the following for T1 and T2 values:
-    https://www.aqt.eu/quantum-memory-lifetime/
-    https://www.nature.com/articles/nmat2420
-    https://arxiv.org/pdf/2005.01852
-    https://www.nature.com/articles/nphys4254
-    https://www.nature.com/articles/s41566-017-0007-1
-    https://www.science.org/doi/full/10.1126/science.1220513
-    https://www.nature.com/articles/s41566-017-0050-y#MOESM1
-    '''
+
+# ''' refer to the following for T1 and T2 values:
+#     https://www.aqt.eu/quantum-memory-lifetime/
+#     https://www.nature.com/articles/nmat2420
+#     https://arxiv.org/pdf/2005.01852
+#     https://www.nature.com/articles/nphys4254
+#     https://www.nature.com/articles/s41566-017-0007-1
+#     https://www.science.org/doi/full/10.1126/science.1220513
+#     https://www.nature.com/articles/s41566-017-0050-y#MOESM1
+#     '''
 
 # for i in range(len(memory_params['T1'])):
 #     results = {delay: [] for delay in delays}
@@ -347,9 +350,9 @@ memory_params = {"T1": [200], "T2": [0.5]}
 #         # twirled_states[delay] = apply_t1t2_noise_to_entangled_state(t1=memory_params["T1"][i], t2=memory_params["T2"][i])
 #         twirled_states[delay] = Werner_state(0.7)
 
-# print("Starting Fidelity: ",np.square(calc_fidelity(twirled_states[delays[-1]])))
+# # print("Starting Fidelity: ",np.square(calc_fidelity(twirled_states[delays[-1]])))
 
-# # print(list(map(check_werner_r1, twirled_states[delays[-1]])))
+# # # print(list(map(check_werner_r1, twirled_states[delays[-1]])))
 
 # delay = delays[-1]
 # initial_state = twirled_states[delay]
@@ -359,103 +362,120 @@ memory_params = {"T1": [200], "T2": [0.5]}
 #     threshold_fidelity=threshold_fidelity,
 #     T1=memory_params["T1"][0],
 #     T2=memory_params["T2"][0],
-#     delay_time=0,
+#     delay_time=100e-4,
 #     max_iterations=50
 # )
-# For a single purification attempt:
+# # For a single purification attempt:
 # perform_bbpssw_purification_direct()
 
+#--------------------------------------------------------------------------------------------------
+# # CODE FOR CREATING MAX FIDELITY V LATENCY PLOT. SET MAX ITERATIONS TO 20. 
 
-#CODE FOR CREATING MAX FIDELITY V LATENCY PLOT. SET MAX ITERATIONS TO 20. 
-
-# def run_purification_experiments(initial_state, T1, T2, max_iterations=20):
-#     threshold_values = np.linspace(0.8, 0.99, 10)  # Fidelity threshold values
-#     delay_times = np.linspace(0, 100e-4, 20)  # Delay times from 0 to 100e-4
+def run_purification_experiments(initial_state, T1, T2, max_iterations=20):
+    threshold_values = np.linspace(0.8, 0.99, 10)  # Fidelity threshold values
+    delay_times = np.linspace(0, 100e-4, 20)  # Delay times from 0 to 100e-4
     
-#     failure_data = {}
+    failure_data = {}
     
-#     for threshold in threshold_values:
-#         failure_point = None
-#         for delay in delay_times:
-#             print(f"Testing threshold {threshold:.2f} with delay {delay:.5f}...")
-#             purified_state, fidelity_history = perform_bbpssw_purification(
-#                 initial_state=initial_state,
-#                 threshold_fidelity=threshold,
-#                 T1=T1,
-#                 T2=T2,
-#                 delay_time=delay,
-#                 max_iterations=max_iterations
-#             )
+    for threshold in threshold_values:
+        failure_point = None
+        for delay in delay_times:
+            print(f"Testing threshold {threshold:.2f} with delay {delay:.5f}...")
+            purified_state, fidelity_history = perform_bbpssw_purification(
+                initial_state=initial_state,
+                threshold_fidelity=threshold,
+                T1=T1,
+                T2=T2,
+                delay_time=delay,
+                max_iterations=max_iterations
+            )
             
-#             if fidelity_history[-1] < threshold:
-#                 failure_point = delay
-#                 break
+            if fidelity_history[-1] < threshold:
+                failure_point = delay
+                break
         
-#         failure_data[threshold] = failure_point if failure_point is not None else max(delay_times)
+        failure_data[threshold] = failure_point if failure_point is not None else max(delay_times)
     
-#     return threshold_values, failure_data
+    return threshold_values, failure_data
 
-# def plot_results(threshold_values, failure_data):
-#     failure_points = [failure_data[t] for t in threshold_values]
+def plot_results(threshold_values, failure_data):
+    failure_points = [failure_data[t] for t in threshold_values]
     
-#     plt.figure(figsize=(8, 5))
-#     plt.plot(threshold_values, failure_points, marker='o', linestyle='-', color='b')
-#     plt.xlabel("Fidelity Threshold")
-#     plt.ylabel("Failure Delay Time (ms)")
-#     plt.title("Threshold Fidelity vs. Failure Delay Time")
-#     plt.grid(True)
-#     plt.show()
+    plt.figure(figsize=(8, 5))
+    plt.plot(threshold_values, failure_points, marker='o', linestyle='-', color='b')
+    plt.xlabel("Fidelity Threshold")
+    plt.ylabel("Failure Delay Time (ms)")
+    plt.title("Bennett Protocol: Threshold Fidelity vs. Failure Delay Time")
+    plt.grid(True)
+    plt.savefig('plots/bbpssw/bbpssw_fidelityIterationsVtime.svg', dpi=400)
+    plt.show()
 
-# # Set initial state and memory parameters
-# initial_state = Werner_state(0.7)
-# T1 = 1.14
-# T2 = 0.5
+# Set initial state and memory parameters
+initial_state = Werner_state(0.7)
+T1 = 1.14
+T2 = 0.5
 
-# threshold_values, failure_data = run_purification_experiments(initial_state, T1, T2)
+threshold_values, failure_data = run_purification_experiments(initial_state, T1, T2)
+print("Threshold values: ", threshold_values)
+print("Failure Data: ", failure_data)
 # plot_results(threshold_values, failure_data)
 
 
+#--------------------------------------------------------------------------------------------------
+# FIDELITY VS Purification Iterations
 
-def plot_fidelity_vs_time(all_fidelity_histories, threshold_fidelity, T1, T2):
-    plt.figure(figsize=(10, 6))
+# def plot_fidelity_vs_time(all_fidelity_histories, threshold_fidelity, T1, T2):
+#     plt.figure(figsize=(10, 6))
     
-    for delay_time, fidelity_history in all_fidelity_histories.items():
-        iterations = np.arange(1, len(fidelity_history) + 1)
-        plt.plot(iterations, fidelity_history, marker='o', linestyle='-', label=f'Delay {delay_time * 1e3:.3f} ms')
+#     for delay_time, fidelity_history in all_fidelity_histories.items():
+#         iterations = np.arange(1, len(fidelity_history) + 1)
+#         plt.plot(iterations, fidelity_history, marker='o', linestyle='-', label=f'Delay {delay_time * 1e3:.3f} ms')
     
-    plt.axhline(y=threshold_fidelity, color='r', linestyle='--', label='Threshold Fidelity')
+#     plt.axhline(y=threshold_fidelity, color='r', linestyle='--', label='Threshold Fidelity')
     
-    max_iterations = max(len(fh) for fh in all_fidelity_histories.values())
-    for i in range(1, max_iterations + 1):
-        plt.axvline(x=i, color='gray', linestyle='dotted', alpha=0.6)
+#     max_iterations = max(len(fh) for fh in all_fidelity_histories.values())
+#     for i in range(1, max_iterations + 1):
+#         plt.axvline(x=i, color='gray', linestyle='dotted', alpha=0.6)
     
-    plt.xlabel('Purification Iteration')
-    plt.ylabel('Fidelity')
-    plt.title(f'Fidelity vs Purification Iterations (T1={T1} ms, T2={T2} ms)')
-    plt.legend()
-    plt.grid(True, linestyle='dotted')
-    plt.show()
+#     plt.xlabel('Purification Iteration')
+#     plt.ylabel('Fidelity')
+#     plt.title(f'Fidelity vs Purification Iterations (T1={T1} ms, T2={T2} ms)')
+#     plt.legend()
+#     plt.grid(True, linestyle='dotted')
+#     plt.show()
 
 
-# Run iterative purification and plot results
-threshold_fidelity_values = [0.95]
-delay_time_values = np.linspace(0, 100e-4, 10)
-initial_state = Werner_state(0.7)
-for threshold_fidelity in threshold_fidelity_values:
-    all_fidelity_histories = {}
+# channel_lengths = np.linspace(10, 90, 9, endpoint=True)
+# # channel_lengths = np.array([1e5, 1e4])
+# speed_of_light = 2e5  # in fibre
+# # delays = [0.0005, 0.001, 0.002, 0.003]
+# delays = [0.001]
+# bar_gr_result_f = {delay: [] for delay in delays}
+# quantum_channel_lengths = [20, 22]
+# # memory_params = {"T1": [86400, 1.14, 100, 3600, 600, 10000], "T2": [63, 0.5, 0.0018, 1.58, 1.2, 667]}
+# memory_params = {"T1": [1.14], "T2": [0.5]}
+# # memory_params = {"T1": [0.0256], "T2": [0.034]}
+# # memory_params = {"T1": [200], "T2": [0.5]}
+
+# # Run iterative purification and plot results
+# threshold_fidelity_values = [0.95]
+# delay_time_values = np.linspace(0, 100e-4, 10)
+# initial_state = Werner_state(0.7)
+# for threshold_fidelity in threshold_fidelity_values:
+#     all_fidelity_histories = {}
     
-    for delay_time in delay_time_values:
-        purified_state, fidelity_history = perform_bbpssw_purification(
-            initial_state=initial_state,
-            threshold_fidelity=threshold_fidelity,
-            T1=memory_params["T1"][0],
-            T2=memory_params["T2"][0],
-            delay_time=delay_time,
-            max_iterations=20 
-        )
+#     for delay_time in delay_time_values:
+#         purified_state, fidelity_history = perform_bbpssw_purification(
+#             initial_state=initial_state,
+#             threshold_fidelity=threshold_fidelity,
+#             T1=memory_params["T1"][0],
+#             T2=memory_params["T2"][0],
+#             delay_time=delay_time,
+#             max_iterations=20 
+#         )
         
-        if fidelity_history:
-            all_fidelity_histories[delay_time] = fidelity_history
+#         if fidelity_history:
+#             all_fidelity_histories[delay_time] = fidelity_history
     
-    if all_fidelity_histories:
-        plot_fidelity_vs_time(all_fidelity_histories, threshold_fidelity, memory_params["T1"][0], memory_params["T2"][0])
+#     if all_fidelity_histories:
+#         plot_fidelity_vs_time(all_fidelity_histories, threshold_fidelity, memory_params["T1"][0], memory_params["T2"][0])
